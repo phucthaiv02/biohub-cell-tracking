@@ -1,0 +1,7 @@
+[project]
+name = "biohub-cell-tracking"
+version = "0.1.0"
+description = "Detect and track zebrafish cells through 3D space and time"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
