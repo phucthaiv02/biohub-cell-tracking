@@ -99,7 +99,15 @@ class TemporalUNet3D(nn.Module):
             else:
                 self.temporal_blocks.append(_TemporalAttention(ch))
             prev = ch
-        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
+        self.pools = nn.ModuleList([
+            # Stage 1: Downsample only X and Y (1, 2, 2) to account for the anisotropic voxel resolution 
+            # where the Z-axis is about 4x coarser than X/Y (z=1.625 vs y=x=0.40625 µm/voxel).
+            nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)), 
+            
+            # Stage 2 and beyond: Standard isotropic downsampling (2, 2, 2) once the spatial dimensions 
+            # are aligned in physical scale.
+            nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2)), 
+        ])
 
         self.upsamples = nn.ModuleList()
         self.decoder_blocks = nn.ModuleList()
@@ -124,7 +132,10 @@ class TemporalUNet3D(nn.Module):
         skips: list[torch.Tensor] = []
         for i, (block, temporal) in enumerate(zip(self.encoder_blocks, self.temporal_blocks)):
             if i > 0:
-                x = self.pool(x)
+                # Select the appropriate pooling layer based on the current network depth.
+                pool_layer = self.pools[0] if i == 1 else self.pools[1]
+                x = pool_layer(x)
+            x = self._run(block, x)
             x = self._run(block, x)
             x = temporal(x.reshape(B, T, *x.shape[1:])).reshape(B * T, *x.shape[1:])
             if i < len(self.encoder_blocks) - 1:
