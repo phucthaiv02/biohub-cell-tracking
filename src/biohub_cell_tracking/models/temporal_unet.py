@@ -136,7 +136,6 @@ class TemporalUNet3D(nn.Module):
                 pool_layer = self.pools[0] if i == 1 else self.pools[1]
                 x = pool_layer(x)
             x = self._run(block, x)
-            x = self._run(block, x)
             x = temporal(x.reshape(B, T, *x.shape[1:])).reshape(B * T, *x.shape[1:])
             if i < len(self.encoder_blocks) - 1:
                 skips.append(x)
